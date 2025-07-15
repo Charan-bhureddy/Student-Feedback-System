@@ -1,0 +1,120 @@
+<?php
+session_start();
+require_once 'config.php';
+
+// CSRF token generation
+if (empty($_SESSION['csrf_token'])) {
+    $_SESSION['csrf_token'] = bin2hex(random_bytes(32));
+}
+?>
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Student Feedback System</title>
+    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+</head>
+<body class="bg-gray-100">
+    <div class="container mx-auto p-4">
+        <h1 class="text-2xl font-bold mb-4">Student Feedback System</h1>
+
+        <?php if (isset($_SESSION['user_id'])): ?>
+            <div class="flex justify-between mb-4">
+                <span>Welcome, <?php echo htmlspecialchars($_SESSION['username']); ?></span>
+                <a href="logout.php" class="text-red-500">Logout</a>
+            </div>
+
+            <?php if ($_SESSION['role'] === 'admin'): ?>
+                <h2 class="text-xl font-semibold mb-2">Feedback Analysis</h2>
+                <?php
+                $stmt = $conn->prepare("SELECT course, AVG(rating) as avg_rating, COUNT(*) as total FROM feedback GROUP BY course");
+                $stmt->execute();
+                $result = $stmt->get_result();
+                ?>
+                <table class="w-full bg-white shadow rounded">
+                    <thead>
+                        <tr class="bg-gray-200">
+                            <th class="p-2">Course</th>
+                            <th class="p-2">Average Rating</th>
+                            <th class="p-2">Total Feedback</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <?php while ($row = $result->fetch_assoc()): ?>
+                            <tr>
+                                <td class="p-2"><?php echo htmlspecialchars($row['course']); ?></td>
+                                <td class="p-2"><?php echo number_format($row['avg_rating'], 2); ?></td>
+                                <td class="p-2"><?php echo $row['total']; ?></td>
+                            </tr>
+                        <?php endwhile; ?>
+                    </tbody>
+                </table>
+            <?php else: ?>
+                <h2 class="text-xl font-semibold mb-2">Submit Feedback</h2>
+                <form action="submit_feedback.php" method="POST" class="bg-white p-4 shadow rounded">
+                    <input type="hidden" name="csrf_token" value="<?php echo $_SESSION['csrf_token']; ?>">
+                    <div class="mb-4">
+                        <label class="block text-sm font-medium">Course</label>
+                        <select name="course" class="w-full p-2 border rounded" required>
+                            <option value="Mathematics">Mathematics</option>
+                            <option value="Science">Science</option>
+                            <option value="History">History</option>
+                        </select>
+                    </div>
+                    <div class="mb-4">
+                        <label class="block text-sm font-medium">Rating (1-5)</label>
+                        <input type="number" name="rating" min="1" max="5" class="w-full p-2 border rounded" required>
+                    </div>
+                    <div class="mb-4">
+                        <label class="block text-sm font-medium">Comments</label>
+                        <textarea name="comments" class="w-full p-2 border rounded" rows="4"></textarea>
+                    </div>
+                    <button type="submit" class="bg-blue-500 text-white p-2 rounded">Submit Feedback</button>
+                </form>
+            <?php endif; ?>
+        <?php else: ?>
+            <div class="flex space-x-4">
+                <div class="w-1/2">
+                    <h2 class="text-xl font-semibold mb-2">Login</h2>
+                    <form action="login.php" method="POST" class="bg-white p-4 shadow rounded">
+                        <input type="hidden" name="csrf_token" value="<?php echo $_SESSION['csrf_token']; ?>">
+                        <div class="mb-4">
+                            <label class="block text-sm font-medium">Username</label>
+                            <input type="text" name="username" class="w-full p-2 border rounded" required>
+                        </div>
+                        <div class="mb-4">
+                            <label class="block text-sm font-medium">Password</label>
+                            <input type="password" name="password" class="w-full p-2 border rounded" required>
+                        </div>
+                        <button type="submit" class="bg-blue-500 text-white p-2 rounded">Login</button>
+                    </form>
+                </div>
+                <div class="w-1/2">
+                    <h2 class="text-xl font-semibold mb-2">Register</h2>
+                    <form action="register.php" method="POST" class="bg-white p-4 shadow rounded">
+                        <input type="hidden" name="csrf_token" value="<?php echo $_SESSION['csrf_token']; ?>">
+                        <div class="mb-4">
+                            <label class="block text-sm font-medium">Username</label>
+                            <input type="text" name="username" class="w-full p-2 border rounded" required>
+                        </div>
+                        <div class="mb-4">
+                            <label class="block text-sm font-medium">Password</label>
+                            <input type="password" name="password" class="w-full p-2 border rounded" required>
+                        </div>
+                        <div class="mb-4">
+                            <label class="block text-sm font-medium">Role</label>
+                            <select name="role" class="w-full p-2 border rounded" required>
+                                <option value="student">Student</option>
+                                <option value="admin">Admin</option>
+                            </select>
+                        </div>
+                        <button type="submit" class="bg-green-500 text-white p-2 rounded">Register</button>
+                    </form>
+                </div>
+            </div>
+        <?php endif; ?>
+    </div>
+</body>
+</html>
